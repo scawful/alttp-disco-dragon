@@ -96,6 +96,46 @@ Sprite_DiscoDragon_Main:
   }
 }
 
+; =============================================================================
+
+print pc
+Sprite_DiscoDragon_Draw:
+{
+  JSL Sprite_PrepOamCoord
+  LDY    $0E
+  LDA    $00 : CLC : ADC    $04 : STA    ($90), Y : PHA ; X position
+  LDA    $02 : CLC : ADC    $06 : INY : PHA : STA    ($90), Y ; Y position
+  
+  PHX ; push the sprite index
+
+  LDX    $0A ; Load the number of tiles
+  LDA    $0D : CMP #$04 : BNE .DR1C10 : PLX : PHX
+  LDA    $0DF0, X : CMP #$01
+  LDA    $0DE0, X : BCC .DR1C0D ; Direction
+  CLC : ADC    #$08
+.DR1C0D
+  CLC : ADC    #$08 : TAX
+
+.DR1C10
+  LDA    DiscoDragon_CharData, X : INY : STA    ($90), Y ; Tile Data
+  TXA : AND    #$07 : TAX
+  LDA    DiscoDragon_AttackData, X
+  PLX ; Reload Sprite Index
+  ORA    $03 : INY : STA    ($90), Y ; Palette/priority
+;
+  LDA    $0D : CMP    #$04 : BNE    .DR1C20
+;
+  PLA : STA !ENEMY_HELP_1 ; Likely storing XY pos and reusing for the head
+  PLA : STA !ENEMY_HELP_2
+  RTS
+
+.DR1C20
+  PLA
+  PLA
+  RTS
+}
+
+
 ;%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ;%		Dragon 1                     		  %
 ;%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -189,12 +229,12 @@ DiscoDragon_MainMove:
 ;;;
 
   JSR	DiscoDragon_Count
-
+  JSL Sprite_OAM_AllocateDeferToPlayer
   ; MEM16 
   REP #$20
-  LDA	!OAM_ADDR : CLC : ADC #$18 : STA !OAM_ADDR
+  LDA	!OAM_ADDR : CLC : ADC #$0018 : STA !OAM_ADDR
   ;                      018H/4
-  LDA	!OAM_SUB_ADDR : ADC	#$06 : STA	!OAM_SUB_ADDR
+  LDA	!OAM_SUB_ADDR : ADC	#$0006 : STA	!OAM_SUB_ADDR
   ; MEM8
   SEP #$20
 ;
@@ -208,7 +248,7 @@ DiscoDragon_MainMove:
 ;
 ;;		LDA	!WORKF : SEC : SBC	#$0C : STA	!WORKF
 ;
-  LDA	!WORKE : CLC : ADC	#$04 : STA	!WORKE
+  LDA	!WORKE : CLC : ADC #$04 : STA !WORKE
 ;
   DEC	!WORKD : BPL .DiscoDragon_Move_010
 ;
@@ -217,10 +257,10 @@ DiscoDragon_MainMove:
   LDA	!ENEMY_TIMER_1, X : BEQ	.Dragon_FireChar090
 ;
   PHA
-
+  JSL Sprite_OAM_AllocateDeferToPlayer
   REP #$20
   LDA	!OAM_ADDR : SEC : SBC	#$0018 : STA	!OAM_ADDR
-  LDA	!OAM_SUB_ADDR : SEC : SBC	#$18/4 : STA	!OAM_SUB_ADDR
+  LDA	!OAM_SUB_ADDR : SEC : SBC	#$0018/4 : STA	!OAM_SUB_ADDR
   SEP	#$20
 ;
   PLA
@@ -635,11 +675,11 @@ DiscoDragon_Long:
   LDA	!FRAME_COUNTER : AND	#$01 : BNE .return
 ;
   INC	!ENEMY_CHAR_POINT, X
-  LDA	!ENEMY_CHAR_POINT, X
-  CMP	#$20 : BNE .return
+  LDA	!ENEMY_CHAR_POINT, X : CMP	#$20 : BNE .return
 ;
   INC	!ENEMY_ACTION, X
-  LDA	#$80 : STA	!ENEMY_TIMER_2, X
+  LDA	#$80 : STA !ENEMY_TIMER_2, X
+
 .return
   RTS
 }
