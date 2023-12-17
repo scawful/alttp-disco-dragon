@@ -20,17 +20,17 @@ incsrc sprite_new_functions.asm
 ;==============================================================================
 
 !SPRID              = $53 ; The sprite ID you are overwriting (HEX)
-!NbrTiles           = 00  ; Number of tiles used in a frame
+!NbrTiles           = 08  ; Number of tiles used in a frame
 !Harmless           = 00  ; 00 = Sprite is Harmful,  01 = Sprite is Harmless
 !HVelocity          = 00  ; Is your sprite going super fast? put 01 if it is
-!Health             = 00  ; Number of Health the sprite have
-!Damage             = 00  ; (08 is a whole heart), 04 is half heart
+!Health             = 20  ; Number of Health the sprite have
+!Damage             = 08  ; (08 is a whole heart), 04 is half heart
 !DeathAnimation     = 00  ; 00 = normal death, 01 = no death animation
 !ImperviousAll      = 00  ; 00 = Can be attack, 01 = attack will clink on it
 !SmallShadow        = 00  ; 01 = small shadow, 00 = no shadow
 !Shadow             = 00  ; 00 = don't draw shadow, 01 = draw a shadow 
 !Palette            = 00  ; Unused in this DiscoDragon (can be 0 to 7)
-!Hitbox             = 00  ; 00 to 31, can be viewed in sprite draw tool
+!Hitbox             = $06  ; 00 to 31, can be viewed in sprite draw tool
 !Persist            = 00  ; 01 = your sprite continue to live offscreen
 !Statis             = 00  ; 00 = is sprite is alive?, (kill all enemies room)
 !CollisionLayer     = 00  ; 01 = will check both layer for collision
@@ -102,6 +102,8 @@ print pc
 Sprite_DiscoDragon_Draw:
 {
   JSL Sprite_PrepOamCoord
+  JSL OAM_AllocateFromRegionA
+
   LDY    $0E
   LDA    $00 : CLC : ADC    $04 : STA    ($90), Y : PHA ; X position
   LDA    $02 : CLC : ADC    $06 : INY : PHA : STA    ($90), Y ; Y position
@@ -217,36 +219,33 @@ DragonFireY_Data:
 
 ; =============================================================================
 
-print pc
+!KEYA2 = $F4
+
 DiscoDragon_MainMove:
 {
-;;;
-;;		LDA	KEYA2 : AND #$08 : BEQ DRM00
-;;		INC	!ENEMY_CHAR_POINT, X
-;;		LDA	!ENEMY_CHAR_POINT, X : CMP #$10 : BCC	DRM00
-;;		STZ	!ENEMY_CHAR_POINT, X
-;;DRM00:
-;;;
+;
+  LDA	!KEYA2 : AND #$08 : BEQ .DRM00
+  INC	!ENEMY_CHAR_POINT, X
+  LDA	!ENEMY_CHAR_POINT, X : CMP #$10 : BCC	.DRM00
+  STZ	!ENEMY_CHAR_POINT, X
+.DRM00:
 
   JSR	DiscoDragon_Count
-  JSL Sprite_OAM_AllocateDeferToPlayer
-  ; MEM16 
+
   REP #$20
   LDA	!OAM_ADDR : CLC : ADC #$0018 : STA !OAM_ADDR
-  ;                      018H/4
-  LDA	!OAM_SUB_ADDR : ADC	#$0006 : STA	!OAM_SUB_ADDR
-  ; MEM8
+  LDA	!OAM_SUB_ADDR : ADC	#$0018/4 : STA	!OAM_SUB_ADDR
   SEP #$20
 ;
-;;		LDA	#0CH*4
-;;		STA	!WORKF  	; haikei
+  ; LDA	#$0C*4
+  ; STA	!WORKF  	; haikei
 ;
-  STZ	!WORKE : LDA	#$04 : STA !WORKD
+  STZ	!WORKE : LDA #$04 : STA !WORKD
 
 .DiscoDragon_Move_010
   JSR	DiscoDragon_Move_020
 ;
-;;		LDA	!WORKF : SEC : SBC	#$0C : STA	!WORKF
+  ; LDA	!WORKF : SEC : SBC #$0C : STA	!WORKF
 ;
   LDA	!WORKE : CLC : ADC #$04 : STA !WORKE
 ;
@@ -257,7 +256,7 @@ DiscoDragon_MainMove:
   LDA	!ENEMY_TIMER_1, X : BEQ	.Dragon_FireChar090
 ;
   PHA
-  JSL Sprite_OAM_AllocateDeferToPlayer
+
   REP #$20
   LDA	!OAM_ADDR : SEC : SBC	#$0018 : STA	!OAM_ADDR
   LDA	!OAM_SUB_ADDR : SEC : SBC	#$0018/4 : STA	!OAM_SUB_ADDR
@@ -265,7 +264,7 @@ DiscoDragon_MainMove:
 ;
   PLA
   LSR	A
-;;		LSR	A
+  LSR	A
   NOP
   TAY
   LDA	Dragon_FireChar0, Y : STA	!WORK1
@@ -278,8 +277,7 @@ DiscoDragon_MainMove:
   STA	!WORK2
 ;
   PHX
-  LDX	!WORK1
-  BMI	.Dragon_FireChar070
+  LDX	!WORK1 : BMI .Dragon_FireChar070
 ;
   LDY	#$00
 
@@ -301,7 +299,7 @@ DiscoDragon_MainMove:
 ;
 .Dragon_FireChar070
   PLX
-  LDY	#$02 : LDA	#$05
+  LDY	#$02 : LDA #$05
   JSR	Allow_OAM_Check ; ; Allow OAM Check (potential hook)
 
 .Dragon_FireChar090
@@ -312,18 +310,18 @@ DiscoDragon_MainMove:
 
 Dragon_FireChar0:
 {
-  db $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$05,$05,$05,$05,$05,$05,$05,$05
+  db -1,-1,-1,-1,-1,-1,-1,-1,$05,$05,$05,$05,$05,$05,$05,$05
   db $05,$05,$05,$05,$05,$05,$05,$05,$05,$05,$05,$05,$05,$05,$05,$05
   db $05,$05,$05,$05,$05,$05,$05,$05,$05,$05,$05,$05,$05,$05,$05,$05
-  db $05,$05,$05,$04,$03,$02,$01,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
+  db $05,$05,$05,$04,$03,$02,$01,$00,-1,-1,-1,-1,-1,-1,-1,-1
 }
 
 Dragon_FireChar1:
 {
-  db $00,$00,$00,$00,$00,$00,$00,$00,$04,$03,$02,$01,$00,$FF,$FF,$FF
-  db $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
-  db $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
-  db $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$00,$00,$00,$00,$00,$00,$00,$00
+  db $00,$00,$00,$00,$00,$00,$00,$00,$04,$03,$02,$01,$00,-1,-1,-1
+  db -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
+  db -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
+  db -1,-1,-1,-1,-1,-1,-1,-1,$00,$00,$00,$00,$00,$00,$00,$00
 }
 
 Dragon_FireCharData:
@@ -376,6 +374,8 @@ RotationMatrixData:
   dw $0015, $0012, $000F, $000C, $0009, $0006, $0003
 }
 
+!ENINDX = $0FA0
+
 ;
 DiscoDragon_Move_020:
 {
@@ -424,30 +424,30 @@ DiscoDragon_Move_020:
 
 .DiscoDragon_Move_300
 ;
-;;		STZ	!WORKF
-;;;
-;;		LDA	#$00
-;;		LDY	!WORKD
-;;		BEQ	DiscoDragon_Move_021
-;;;
-;;		LDA	!ENEMY_CHAR_POINT, X
-;;		ASL	A
-;;		ASL	A
-;;		ADC	!WORKD
-;;		DEC	A
-;;		TAX
-;;		LDA	DRPTD1, X
-;;		STA	!WORKF
+;   STZ	!WORKF
+; ;
+;   LDA	#$00
+;   LDY	!WORKD
+;   BEQ	.DiscoDragon_Move_021
+; ;
+;   LDA	!ENEMY_CHAR_POINT, X
+;   ASL	A
+;   ASL	A
+;   ADC	!WORKD
+;   DEC	A
+;   TAX
+;   LDA	DragonPoint_Data1, X
+;   STA	!WORKF
 ;;;
 .DiscoDragon_Move_205
   LDY	#$00
-;;;		LDA	DRPTD0, X
+  ; LDA	DragonPoint_Data0, X
   LDA	!WORK2 : BPL .DiscoDragon_Move_021
   DEY
 
 .DiscoDragon_Move_021
   CLC
-;;		LDX	ENINDX
+  ; LDX	!ENINDX
   ADC	!ENEMY_WORK_1, X : STA !WORK0
   TYA
   ADC	!ENEMY_WORK_0, X : AND	#$01 : STA !WORK1
@@ -913,7 +913,7 @@ Allow_OAM_Check:
 ;
   ; IDX8
   SEP	#$10
-;;		LDX	ENINDX
+;;		LDX	!ENINDX
   PLX
   RTS
 }
